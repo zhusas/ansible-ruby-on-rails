@@ -1,0 +1,246 @@
+---
+- name: Create app dir
+  file:
+    path: "{{ deploy_dir }}/{{ deploy_app_name }}/{{ item }}"
+    state: directory
+    mode: 0755
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+  with_items: "{{ app_dirs }}"
+  #register: app_dir
+
+
+- name: Create app file
+  file:
+    path: "{{ deploy_dir }}/{{ deploy_app_name }}/{{ item }}"
+    state: touch
+    mode: 0755
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+  with_items: "{{ puma_files }}"
+  #register: sockets_file
+
+- name: chown app dir
+  file:
+    path: "{{ deploy_dir }}/{{ deploy_app_name }}"
+    mode: 0755
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    recurse: yes
+    #register: chown_app_dir
+
+
+- name:  Accelerate the Github.com
+  lineinfile:
+    path: /etc/hosts
+    line: '{{ item }}'
+  with_items:
+    - 151.101.109.194 github.global.ssl.fastly.net
+
+- name: Create a bare code base
+  become: yes
+  become_method: su
+  become_user: "{{ deploy_user }}"
+  git:
+    repo: "{{ app_repo }}"
+    dest: "{{ deploy_dir }}/{{ deploy_app_name }}/scm"
+    bare: yes
+    key_file: "/home/{{ deploy_user }}/.ssh/id_rsa"
+    accept_hostkey: yes
+
+- name: Initialize and copy the code to BUILD_DIR and switch branches
+  become: yes
+  become_method: su
+  become_user: "{{ deploy_user }}"
+  git:
+    repo: "{{ deploy_dir }}/{{ deploy_app_name }}/scm"
+    dest: "{{ deploy_dir }}/{{ deploy_app_name }}/build"
+    version: "{{ branch }}"
+
+
+- name: copy config file to shard/config dir
+  template:
+    src: '{{ item.src }}'
+    dest: '{{ item.dest }}'
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: 0644
+  with_items:
+    - { src: 'template/database.yml.j2', dest: '{{ deploy_dir }}/{{ deploy_app_name }}/shared/config/database.yml' }
+    - { src: 'template/secrets.yml.j2', dest: '{{ deploy_dir }}/{{ deploy_app_name }}/shared/config/secrets.yml' }
+    - { src: 'template/wechat.yml.j2', dest: '{{ deploy_dir }}/{{ deploy_app_name }}/shared/config/wechat.yml' }
+
+
+#remove build dir log subdirectories
+- name: Remove build dir log subdirectories
+  become: yes
+  become_method: su
+  become_user: "{{ deploy_user }}"
+  file:
+    path: "{{ deploy_dir }}/{{ deploy_app_name }}/build/log"
+    state: absent
+
+- name: Create  symbolic link to the code build directory
+  file:
+    src: '{{ item.src }}'
+    dest: '{{ item.dest }}'
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: 0644
+    state: link
+    force: yes
+  with_items:
+    - { src: '{{ deploy_dir }}/{{ deploy_app_name }}/shared/vendor/bundle', dest: '{{ deploy_dir }}/{{ deploy_app_name }}/build/vendor/bundle' }
+    - { src: '{{ deploy_dir }}/{{ deploy_app_name }}/shared/log', dest: '{{ deploy_dir }}/{{ deploy_app_name }}/build/log' }
+    - { src: '{{ deploy_dir }}/{{ deploy_app_name }}/shared/tmp', dest: '{{ deploy_dir }}/{{ deploy_app_name }}/build/tmp' }
+    - { src: '{{ deploy_dir }}/{{ deploy_app_name }}/shared/public/assets', dest: '{{ deploy_dir }}/{{ deploy_app_name }}/build/public/assets' }
+    - { src: '{{ deploy_dir }}/{{ deploy_app_name }}/shared/public/uploads', dest: '{{ deploy_dir }}/{{ deploy_app_name }}/build/public/uploads' }
+    - { src: '{{ deploy_dir }}/{{ deploy_app_name }}/shared/config/database.yml', dest: '{{ deploy_dir }}/{{ deploy_app_name }}/build/config/database.yml' }
+    - { src: '{{ deploy_dir }}/{{ deploy_app_name }}/shared/config/secrets.yml', dest: '{{ deploy_dir }}/{{ deploy_app_name }}/build/config/secrets.yml' }
+    - { src: '{{ deploy_dir }}/{{ deploy_app_name }}/shared/config/wechat.yml', dest: '{{ deploy_dir }}/{{ deploy_app_name }}/build/config/wechat.yml' }
+
+- name: Install Gem packages
+  become: yes
+  become_method: su
+  become_user: "{{ deploy_user }}"
+  shell: /home/{{ deploy_user }}/.rbenv/shims/bundle install --without development test --path "vendor/bundle" --deployment
+  args:
+    chdir: "{{ deploy_dir }}/{{ deploy_app_name }}/build"
+
+
+
+- name: Compile static files
+  become: yes
+  become_method: su
+  become_user: "{{ deploy_user }}"
+  shell: "/home/{{ deploy_user }}/.rbenv/shims/bundle exec rake assets:precompile"
+  environment:
+    RAILS_ENV: "{{ rails_env }}"
+  args:
+    chdir: "{{ deploy_dir }}/{{ deploy_app_name }}/build"
+
+
+- name: Create a new database with name
+  mysql_db:
+    name: "{{ app_database_name }}"
+    state: present
+    encoding: utf8
+    login_host: "{{ ansible_default_ipv4.address }}"
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+
+
+- name: Create database user and password with all database privileges
+  mysql_user:
+    name: "{{ app_database_user }}"
+    password: "{{ app_database_passwd }}"
+    priv: '{{ app_database_name }}.*:ALL'
+    host: "{{ ansible_default_ipv4.address }}"
+    state: present
+    login_host: "{{ ansible_default_ipv4.address }}"
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+
+
+- name: Database migration
+  become: yes
+  become_method: su
+  become_user: "{{ deploy_user }}"
+  shell: "/home/{{ deploy_user }}/.rbenv/shims/bundle exec rake db:migrate"
+  environment:
+    RAILS_ENV: "{{ rails_env }}"
+  args:
+    chdir: "{{ deploy_dir }}/{{ deploy_app_name }}/build"
+
+    
+- name: set releases_num vars
+  shell: echo $((`ls -1 {{ deploy_dir }}/{{ deploy_app_name }}/releases | sort -n | tail -n 1`+1))
+  register: releases_num
+
+
+- name: Rename the build directory and move to releases directory
+  shell: "mv {{ deploy_dir }}/{{ deploy_app_name }}/build {{ deploy_dir }}/{{ deploy_app_name }}/releases/{{ releases_num.stdout }}"
+  
+
+- name: set releases_exist_num  vars
+  shell: echo $((`ls -1 {{ deploy_dir }}/{{ deploy_app_name }}/releases | sort -n | tail -n 1`))
+  register: releases_exist_num
+
+
+- name: Update the  application current directory from releases directory
+  file:
+    src: "{{ deploy_dir }}/{{ deploy_app_name }}/releases/{{ releases_exist_num.stdout }}"
+    dest: "{{ deploy_dir }}/{{ deploy_app_name }}/current"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: 0644
+    state: link
+
+- name: Copy init script 
+  template:
+    src: template/puma_sidekiq_init-v2.j2
+    dest: /home/{{ deploy_user }}/puma_sidekiq_init-v2.sh
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "u=rwx,g=rx,o=rx"
+
+- name: Set application startup
+  lineinfile:
+    path: /etc/rc.local
+    state: present
+    insertbefore: 'exit 0'
+    line: 'su - {{ deploy_user }} -c "bash /home/{{ deploy_user }}/puma_sidekiq_init-v2.sh"'
+
+
+- name: Copy setting.yml to current/config/settings dir
+  template:
+    src: template/setting.yml.j2
+    dest: "{{ deploy_dir }}/{{ deploy_app_name }}/current/config/settings/setting.yml"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: 0644
+
+
+- name: Copy database sql file
+  copy:
+    src: /tmp/donghua.sql
+    dest: /tmp/donghua.sql
+
+
+- name: Restore database
+  mysql_db:
+    login_host: "{{ ansible_default_ipv4.address }}"
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+    name: "{{ app_database_name }}"
+    state: import
+    target: "/tmp/donghua.sql"
+
+
+- name: Reindex Elasticsearch index
+  become: yes
+  become_method: su
+  become_user: "{{ deploy_user }}"
+  shell: "/home/{{ deploy_user }}/.rbenv/shims/bundle exec rake searchkick:reindex CLASS=Product"
+  environment:
+    RAILS_ENV: "{{ rails_env }}"
+  args:
+    chdir: "{{ deploy_dir }}/{{ deploy_app_name }}/current"
+
+
+- name: Run app GO GO GO
+  become: yes
+  become_method: su
+  become_user: "{{ deploy_user }}"
+  shell: bash puma_sidekiq_init-v2.sh
+  args:
+    chdir: "/home/{{ deploy_user }}"
+
+- name: 事了拂袖去，深藏功与名
+  file:
+    path: "/tmp/*"
+    state: absent
+
+    
+
+

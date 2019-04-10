@@ -1,0 +1,112 @@
+user  root;
+worker_processes  {{ ansible_processor_vcpus }};	
+#error_log  logs/error.log;
+error_log  logs/error.log  notice;
+#error_log  logs/error.log  info;
+
+pid        logs/nginx.pid;
+
+events {
+    worker_connections  {{ worker_connections }};
+}
+
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+	 log_format  json  '{"@timestamp_local":"$time_iso8601",'
+		             	 '"http_host":"$host",'
+					 		 '"host":"$server_addr",'
+					 		 '"clientip":"$http_x_forwarded_for",'
+					 		 '"size":"$body_bytes_sent",'
+					 		 '"responsetime":"$request_time",'
+					 		 '"upstreamhost":"$upstream_addr",'
+					 		 '"upstreamtime":"$upstream_response_time",'
+					 		 '"url":"$uri",'
+					 		 '"request":"$request",'
+					  		 '"request_length":"$request_length",'
+					 		 '"request_method":"$request_method",'
+					 		 '"args":"$args",'
+					 		 '"xff":"$remote_addr",'
+					 		 '"referer":"$http_referer",'
+					 		 '"agent":"$http_user_agent",'
+					 		 '"status":"$status"}';
+
+
+    access_log  logs/access.log  json;
+
+    sendfile        on;
+    tcp_nopush     on;
+    keepalive_timeout  200;
+    gzip  on;
+    client_max_body_size 200m;
+    client_body_buffer_size 4096k;
+	 proxy_buffering off;
+
+
+	 upstream {{ deploy_app_name }} {
+    	server unix://{{ deploy_dir }}/{{ deploy_app_name }}/shared/tmp/sockets/puma.sock;
+
+    }
+
+    #WebSocket proxying configuration
+    map $http_upgrade $connection_upgrade {
+         default upgrade;
+         '' close;
+    }
+
+
+    server {
+			listen      80;
+			server_name  {{ ansible_default_ipv4.address }};
+
+
+         location / {
+				root   {{ deploy_dir }}/{{ deploy_app_name }}/current/public;
+				index  index.html index.htm;
+
+				proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header Host $http_host;
+
+
+
+				rewrite ^\/look_raw_material$  https://$server_name permanent;
+
+
+
+            if (-f $request_filename.html) {
+                  rewrite (.*) $1.html break;
+            }
+
+				if (!-f $request_filename) {
+                  proxy_pass http://{{ deploy_app_name }};
+                  break;
+            }
+
+        }
+   
+         
+		  location /m/ {
+				gridfs {{ mongodb_database }} root_collection=fs field=filename type=string;
+				mongo  {{ ansible_default_ipv4.address }}:27017; 
+		  }
+
+
+        #For whmall_v2 notice
+        location /cable {
+				proxy_pass  http://{{ deploy_app_name }};
+				proxy_read_timeout 5s;
+        		proxy_set_header Host $host;
+		    	proxy_set_header X-Real_IP $remote_addr;
+				proxy_set_header X-Forwarded-for $remote_addr;
+
+           	proxy_http_version 1.1;
+           	proxy_set_header Upgrade $http_upgrade;
+           	proxy_set_header Connection "upgrade";
+        }
+
+   }
+
+
+}

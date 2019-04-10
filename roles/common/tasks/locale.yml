@@ -1,0 +1,8 @@
+- name: Ensure a locale exists
+  locale_gen:
+    name: "{{ locale }}"
+    state: present
+
+- name: set /etc/timezone to "{{ timezone }}"
+  timezone:
+    name: "{{ timezone }}"

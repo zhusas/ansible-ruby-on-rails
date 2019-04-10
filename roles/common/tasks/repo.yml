@@ -1,0 +1,10 @@
+- name: sources.list.j2 tempalte transfer example
+  template: 
+    src: sources.list.j2 
+    dest: /etc/apt/sources.list
+    backup: yes
+    owner: root
+    group: root
+    mode: 0644
+    force: yes
+

@@ -1,0 +1,73 @@
+- name: Add or modify soft nofile limits for wildcard domain
+  pam_limits:
+    domain: '*'
+    limit_type: soft
+    limit_item: nofile
+    value: 9999999
+
+- name: Add or modify hard nofile limits for wildcard domain
+  pam_limits:
+    domain: '*'
+    limit_type: hard
+    limit_item: nofile
+    value: 9999999
+    
+ 
+- name: Add or modify soft nproc limits for wildcard domain
+  pam_limits:
+    domain: '*'
+    limit_type: soft
+    limit_item: nproc
+    value: 9999999 
+
+- name: Add or modify hard nproc limits for wildcard domain
+  pam_limits:
+    domain: '*'
+    limit_type: hard
+    limit_item: nproc
+    value: 9999999
+
+
+- name: Add or modify soft nofile limits for wildcard domain
+  pam_limits:
+      domain: root
+      limit_type: soft
+      limit_item: nofile
+      value: 9999999
+
+- name: Add or modify hard nofile limits for wildcard domain
+  pam_limits:
+    domain: root
+    limit_type: hard
+    limit_item: nofile
+    value: 9999999
+
+- name: Add or modify soft nproc limits for wildcard domain
+  pam_limits:
+      domain: root
+      limit_type: soft
+      limit_item: nproc
+      value: 9999999
+
+- name: Add or modify hard nproc limits for wildcard domain
+  pam_limits:
+      domain: root
+      limit_type: hard
+      limit_item: nproc
+      value: 9999999
+
+- name: Modify sysctl.conf file descriptor and maximum thread open number parameter to ensure that Docker service starts normally
+  lineinfile:
+    path: /etc/sysctl.conf
+    regexp: "{{ item.target }}"
+    line: "{{ item.content }}"
+  with_items:
+    - { target: '^fs.file-max', content: 'fs.file-max = 9999999' }
+    - { target: '^kernel.threads-max', content: 'kernel.threads-max = 9999999' }
+    - { target: '^fs.nr_open', content: 'fs.nr_open = 9999999' }
+  register: sysctl_conf
+
+- name: Enables the kernel parameter file to take effect
+  shell: sysctl -p
+  when: sysctl_conf is changed
+

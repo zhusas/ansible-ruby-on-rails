@@ -1,0 +1,45 @@
+#!/bin/sh
+
+#setting ruby environment
+export RBENV_ROOT="/home/{{ deploy_user }}/.rbenv"
+export PATH="/home/{{ deploy_user }}/.rbenv/bin:$PATH"
+eval "$(rbenv init -)"
+
+
+#Set the path for your application based on the actual situation
+APP_HOME={{ deploy_dir }}/{{ deploy_app_name }}/current
+
+#Released version,Optional values are "staging|production"
+RELEASE={{ branch }}
+
+
+#judge ruby environment and startup puma server
+if ! which rbenv >/dev/null; then
+  echo "rbenv not found!"
+  echo "If rbenv is installed, check your :rbenv_path setting!"
+  exit 1
+else
+  eval "$(rbenv init -)"
+  cd $APP_HOME && BUNDLE_GEMFILE=$APP_HOME/Gemfile RAILS_ENV=$RELEASE bundle exec puma -e $RELEASE
+  echo "Puma is running!"
+fi
+
+#judge ruby environment and startup sidekiq
+if ! which rbenv >/dev/null; then
+  echo "! rbenv not found"
+  echo "! If rbenv is installed, check your :rbenv_path setting."
+  exit 1
+
+else  
+
+#stop sidekiq
+  eval "$(rbenv init -)" 
+  echo "-----> Stop sidekiq"
+  cd $APP_HOME && RAILS_ENV=$RELEASE bundle exec sidekiqctl stop $APP_HOME/tmp/pids/sidekiq.pid 10 && RAILS_ENV=$RELEASE bundle exec sidekiqctl stop $APP_HOME/tmp/pids/sidekiq.pid-1 10 && cd - && echo "sidekiq was stop"
+
+#start sidekiq
+  eval "$(rbenv init -)"
+  echo "-----> Start sidekiq"
+  cd $APP_HOME && RAILS_ENV=$RELEASE bundle exec sidekiq -d -d -i 0 -P $APP_HOME/tmp/pids/sidekiq.pid && RAILS_ENV=$RELEASE bundle exec sidekiq -d -d -i 1 -P $APP_HOME/tmp/pids/sidekiq.pid-1 && cd - && echo "sidekiq was start"
+
+fi

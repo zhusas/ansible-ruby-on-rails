@@ -1,0 +1,17 @@
+- name: set hostname
+  hostname: 
+   name: "{{ deploy_server_hostname }}"
+
+- name: Add resolve host to /etc/hosts
+  lineinfile: 
+   path: /etc/hosts
+   line: '127.0.1.1 whmallv2'
+   create: yes
+
+
+
+
+
+
+
+

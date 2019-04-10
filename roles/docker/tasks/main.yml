@@ -1,0 +1,40 @@
+---
+- name: Add Docker’s official GPG key
+  apt_key: 
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+    
+- name: Add ustc docker-ce repository into sources list using specified filename
+  apt_repository:
+    repo: "deb [arch=amd64] http://mirrors.ustc.edu.cn/docker-ce/linux/ubuntu {{ ansible_lsb.codename }} stable"
+    state: present
+    filename: ustc_docker_ce
+
+- name: Install the package "docker-ce"
+  apt: 
+    name: docker-ce
+    state: present
+    install_recommends: yes
+
+- name: Create /etc/docker/
+  file:
+    path: /etc/docker
+    state: directory
+
+- name: Add the Registry domestic accelerator address to /etc/docker/daemon.json
+  template:
+    src:  templates/daemon.j2
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: '0600'
+  
+
+- name: Reload and restart docker service
+  systemd: 
+    daemon_reload: yes
+    name: docker
+    state: restarted
+
+
+

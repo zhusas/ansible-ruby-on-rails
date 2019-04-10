@@ -1,0 +1,161 @@
+---
+# Server Timzone + Locale
+timezone: Asia/Shanghai
+locale: en_US.UTF-8
+
+#Set hostname
+deploy_server_hostname: YOUR SERVER HOSTNAME
+
+
+#Set Docker
+docker_mirrors: Your docker mirror repository url
+docker_network_name: bridge
+
+
+# Set MySQL arguments
+mysql_docker_conf_dir: /data/mysql/conf
+mysql_docker_data_dir: /data/mysql/data
+mysql_docker_log_dir: /data/mysql/log
+mysql_docker_name: mysql-server
+
+
+#Set MySQL docker image tag,it is only "mysql:5.6" or "mysql:5.7"
+mysql_docker_image: mysql:5.6
+mysql_root_password: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          36306263613762386535323464613266383935623166fdghjfg23942984u29293235366434386130
+          66663737373035383361366565326243908726381253054681y38192312546342330663335636261
+          3139u961363934366362623462316664376533371236512645807812537612673162636433613531
+          333996878968981291827588291839183fh293823239248657hfr928393019321291923364356366
+          35656666623233646234373136313031623831623961383133366333636238336538
+
+
+#Application database parameter Settings
+app_database_name: The name of the application database
+app_database_user: The user of the application database
+app_database_passwd: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          61316637313911111111111111111111111111111111111111111111111111111111666237373233
+          61356364343664633237666162111111111111111111111111111111111111111133353236336533
+          63396666346339366364366435616664663933383063663663323462323235636165663835343539
+          31831643538353061323231303837623966633065363111111111111111111111111111665303961
+          3364626334311111111111111111111111111111111111111111111111111111113932623238
+
+
+
+#Set Redis
+redis_data_dir: /data/redis
+
+#Set mongodb
+mongodb_data_dir: /data/mongodb/data
+mongodb_conf_dir: /data/mongodb/conf
+mongodb_version: 3.6
+mongodb_database: MONGODB DATABASE NAME
+
+#Set Elasticsearch
+elasticsearch_data_dir: /data/elasticsearch/data
+elasticsearch_conf_dir: /data/elasticsearch/conf
+elasticsearch_log_dir: /data/elasticsearch/logs
+elasticsearch_version: 6.6.2
+elasticsearch_index: INDEX NAME
+
+
+#Set Nginx Variable
+nginx_gridfs_modules: "--add-module=../nginx-gridfs/"
+nginx_version: 1.12.2
+nginx_src_dir: /tmp
+nginx_prefix_dir: /opt/nginx/
+nginx_sbin_path: "{{ nginx_prefix_dir }}sbin/nginx"
+nginx_conf_path: "{{ nginx_prefix_dir }}conf/nginx.conf"
+nginx_pid_path: "{{ nginx_prefix_dir }}logs/nginx.pid"
+nginx_service_template: nginx.service-{{ ansible_os_family }}.j2
+nginx_init_template: nginx.init-{{ ansible_os_family }}.j2
+worker_connections: 65535
+nginx_build_options: "--prefix={{ nginx_prefix_dir }} --with-http_ssl_module --with-http_v2_module --with-http_realip_module --with-http_gzip_static_module --with-http_secure_link_module --with-threads --with-file-aio --without-mail_pop3_module --without-mail_imap_module --without-mail_smtp_module"
+
+
+
+###Set the variables and parameters for application###
+
+#Set the application name
+deploy_app_name: Application name
+
+#Define application users
+deploy_user: Which user the application is running with
+deploy_password: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          616566666666666666666666666666666666666666666666666393233646339333862363165626263
+          3864393663235396463350a3435363736333865663865363666666666666666666666666666653430
+          653138643935343638666666666666666666666666666666666666666666666666666666563626538
+          336236646236666666666666663631613433616666623361626336666666666666666666561653365
+          6666666666666666666666666666666666693362616131343030
+
+
+#Set application dirs
+deploy_dir: /data/www
+app_dirs:
+  - releases
+  - shared
+  - shared/public/assets
+  - shared/public/uploads
+  - shared/vendor/bundle
+  - shared/config
+  - shared/log
+  - shared/tmp/sockets
+  - shared/tmp/pids
+  - shared/tmp/cache 
+
+#Create puma server state and pid files
+puma_files:
+  - shared/tmp/sockets/puma.state
+  - shared/tmp/sockets/puma.pid
+
+
+
+#Code base branch,staging or master
+branch: staging
+
+#Define the project's url from github
+app_repo: Github url
+
+
+#Ruby version manager to use?:
+ruby_version_manager: rbenv
+ruby_version: 2.4.2
+
+
+# Rails
+
+#Set the rails_env staging or production
+rails_env: staging
+
+staging_rails_secret_key_base: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          62333830353736303462353562376566356265666532326336313639363938303339376461316464
+          3261643336636534373161326630356531396134653639370a666538633037376431303534326334
+          61643038623466326531313239383735376531373161353636616536363037303437613138656464
+          6264316432353363344444444444239303333333333333333333333333333737222222222222222
+          32383738363664653430663239343865353533316131386236386636376231326462636562613164
+          61633963316366373836643939303532646431636131643137663733656662323738336530333237
+          66657777777777777777777777777777777777777777773065616637616163343962613361323661
+          63373335313933333064343130636239555555555555513934613831626633646637393335613738
+          37323832373033333333333161616439393332376435353863653563396338653630636437343635
+          35303362333430376331363263363362363363323731323438633530343436346430336337653133
+          326466336330383936356262653637383763
+ 
+
+
+production_rails_secret_key_base: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          36333931663437613337396538663737303263636663646635333362373334353763343733636135
+          3938663039616563653332316561643137333230363163380a336338646362366161326364353433
+          33333333333333333333333333353435344321432432656233383965333035306366373365343737
+          6433323562613333380a323934646434313362616437346534303561646134666533626636336261
+          30636231343433663364643535363232303238386261234657652331243457576876995543636434
+          663968784343123436546756854324366587334
+
+puma_workers: 2
+puma_threads: 2,8
+
+
+

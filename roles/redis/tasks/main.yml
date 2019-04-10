@@ -1,0 +1,15 @@
+---
+- name: Create Redis directory
+  file: 
+    path: "{{ redis_data_dir }}"
+    state: directory
+
+- name: Install Redis Server
+  docker_container:
+    name: redis
+    image: redis
+    ports: "{{ ansible_default_ipv4.address }}:6379:6379"
+    restart_policy: on-failure
+    volumes:
+      - "{{ redis_data_dir }}:/data"
+    

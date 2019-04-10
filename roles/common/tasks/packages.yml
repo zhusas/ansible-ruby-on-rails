@@ -1,0 +1,79 @@
+- name: Install packages
+  apt:
+    name: "{{ packages }}"
+    update_cache: yes
+  vars:
+    packages:
+    - software-properties-common 
+    - wget
+    - vim
+    - build-essential
+    - openssl
+    - libreadline6
+    - libreadline6-dev
+    - libsqlite3-dev
+    - libmysqlclient-dev
+    - libpq-dev
+    - curl
+    - git-core
+    - zlib1g
+    - zlib1g-dev
+    - libssl-dev
+    - libyaml-dev
+    - libxml2-dev
+    - libxslt-dev
+    - gcc 
+    - autoconf
+    - automake
+    - cmake
+    - libtool
+    - imagemagick
+    - libmagickwand-dev
+    - libpcre3
+    - libpcre3-dev
+    - language-pack-zh-hans
+    - libevent-dev
+    - libgmp-dev
+    - libgmp3-dev
+    - redis-tools
+    - htop
+    - git
+    - clang
+    - make
+    - nodejs
+    - libcurl4-openssl-dev
+    - sqlite3
+    - libgdbm-dev
+    - libncurses5-dev
+    - bison
+    - gnutls-bin
+    - libgdbm-dev
+    - pkg-config
+    - libffi-dev
+    - gnupg2
+    - xpdf
+    - ghostscript
+    - python-pymysql
+    - mysql-client-5.7
+
+
+- name: Install python-docker on Red Hat based distribution
+  yum:
+    name: python-docker
+    enablerepo: extras
+    state: latest
+  when: ansible_os_family == 'RedHat'
+
+
+- name: Install python-docker  on Debian based distribution
+  apt: 
+    name: python-docker
+    update_cache: yes
+  when: ansible_os_family == 'Debian'
+
+
+- name: Install (PyMySQL) python package.
+  pip:
+    name: PyMySQL
+
+

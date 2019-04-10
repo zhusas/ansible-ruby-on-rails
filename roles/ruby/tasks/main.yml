@@ -1,0 +1,62 @@
+---
+- name: git clone ruby
+  become: yes
+  become_method: su
+  become_user: "{{ deploy_user }}"
+  shell: "{{ item }}"
+  with_items:
+    - "git clone https://github.com/sstephenson/rbenv.git ~/.rbenv"
+    - "git clone git://github.com/sstephenson/ruby-build.git ~/.rbenv/plugins/ruby-build"
+    - "git clone git://github.com/jamis/rbenv-gemset.git  ~/.rbenv/plugins/rbenv-gemset"
+    - "git clone git://github.com/sstephenson/rbenv-gem-rehash.git ~/.rbenv/plugins/rbenv-gem-rehash"
+    - "git clone git://github.com/rkh/rbenv-update.git ~/.rbenv/plugins/rbenv-update"
+    - "git clone git://github.com/AndorChen/rbenv-china-mirror.git ~/.rbenv/plugins/rbenv-china-mirror"
+  args:
+    chdir: ~
+  register: git
+
+- name: Setting the deploy_user environment variables from rbenv
+  lineinfile:
+    path: "/home/{{ deploy_user }}/.bashrc"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: 0644
+    line: "{{ item }}"
+  with_items:
+    - 'PATH=/home/webuser/.rbenv/bin:$PATH'
+    - 'eval "$(rbenv init -)"'
+  register: rbenv
+
+- name: Install ruby bundle rails
+  become: yes
+  become_method: su
+  become_user: "{{ deploy_user }}"
+  shell: "{{ item }}"
+  with_items:
+    - "source ~/.bashrc"
+    - "/home/{{ deploy_user }}/.rbenv/bin/rbenv install {{ ruby_version }}"
+    - "/home/{{ deploy_user }}/.rbenv/bin/rbenv global {{ ruby_version }}"
+    - "/home/{{ deploy_user }}/.rbenv/bin/rbenv rehash"
+    - "/home/{{ deploy_user }}/.rbenv/shims/gem sources --add https://gems.ruby-china.com --remove https://rubygems.org/"
+    - "/home/{{ deploy_user }}/.rbenv/shims/gem install bundle"
+    - "/home/{{ deploy_user }}/.rbenv/shims/gem install rails"
+  args:
+    chdir: ~
+    executable: /bin/bash
+  register: ruby_installed
+  when: 
+    - git is changed
+    - rbenv is changed
+
+
+- name: Show Ruby/bundle/rails version
+  become: yes
+  become_method: su
+  become_user: "{{ deploy_user }}"
+  command: "{{ item }}"
+  with_items:
+    - "/home/{{ deploy_user }}/.rbenv/shims/ruby -v"
+    - "/home/{{ deploy_user }}/.rbenv/shims/gem -v"
+    - "/home/{{ deploy_user }}/.rbenv/shims/bundle -v"
+    - "/home/{{ deploy_user }}/.rbenv/shims/rails -v"
+  when: ruby_installed

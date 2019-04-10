@@ -1,0 +1,24 @@
+---
+- name: Create mongoDB directory
+  file: 
+    path: "{{ item }}"
+    state: directory
+  with_items:
+    - "{{ mongodb_data_dir }}"
+    - "{{ mongodb_conf_dir }}"
+
+
+
+- name: Install mongodb container
+  docker_container:
+    name: mongodb
+    image: "mongo:{{ mongodb_version }}"
+    ports: "{{ ansible_default_ipv4.address }}:27017:27017"
+    restart_policy: on-failure
+    volumes:
+      - "{{ mongodb_data_dir }}:/data/db"
+    
+
+
+
+

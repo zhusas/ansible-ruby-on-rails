@@ -1,0 +1,29 @@
+# Install python and aptitude on the target machines (apt-get install python aptitude)
+# Copy ssh public key to machines (ssh-copy-id user@host)
+---
+
+- name: Deploy Sit Server
+  hosts: server
+  remote_user: root
+  gather_facts: yes
+
+  #- name: apt-get update
+  #raw: apt-get update -qq
+
+  #- name: install python 2.7 and aptitude
+  #raw: apt-get install -qq python2.7 aptitude python-apt python3-apt
+
+  
+  roles:
+    - common
+    - deploy-user
+    - docker
+    - mysql
+    - mongodb
+    - memcached
+    - redis
+    - elasticsearch
+    - nginx
+    - ruby
+    - applications
+

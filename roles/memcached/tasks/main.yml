@@ -1,0 +1,10 @@
+---
+
+- name: Install memcached Server
+  docker_container:
+    name: memcached
+    image: memcached
+    ports: "{{ ansible_default_ipv4.address }}:11211:11211"
+    restart_policy: on-failure
+
+

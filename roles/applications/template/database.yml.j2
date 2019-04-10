@@ -1,0 +1,11 @@
+{{ rails_env }}:
+  adapter: mysql2
+  encoding: utf8
+  reconnect: false
+  pool: 5
+  database: {{ app_database_name }}
+  username: {{ app_database_user }}
+  password: {{ app_database_passwd }}
+  host: {{ ansible_default_ipv4.address }}
+  port: 3306
+

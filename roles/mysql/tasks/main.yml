@@ -1,0 +1,78 @@
+---
+- name: Create MySQL directory
+  file: 
+    path: "{{ item }}"
+    state: directory
+  with_items:
+    - "{{ mysql_docker_conf_dir }}"
+    - "{{ mysql_docker_data_dir }}"
+    - "{{ mysql_docker_log_dir }}"
+    
+
+- name: copy MySQL5.6 my.cnf file
+  copy:
+    src: file/MySQL5.6.cnf
+    dest: "{{ mysql_docker_conf_dir }}/my.cnf"
+    owner: root
+    mode: 0600
+  when: mysql_docker_image  == "mysql:5.6"
+
+- name: copy MySQL5.7 my.cnf file
+  copy:
+    src: file/MySQL5.7.cnf
+    dest: "{{ mysql_docker_conf_dir }}/my.cnf"
+    owner: root
+    mode: 0600
+  when: mysql_docker_image == "mysql:5.7"
+
+
+- name: Ensure MySQL5.6 container is up
+  docker_container:
+    name: "{{ mysql_docker_name }}"
+    hostname: "{{ mysql_docker_name }}"
+    image: "{{ mysql_docker_image }}"
+    network_mode: "{{ docker_network_name }}"
+    ports: "{{ ansible_default_ipv4.address }}:3306:3306"
+    state: started
+    restart: yes
+    restart_policy: on-failure
+    command:
+      - "--character-set-server=utf8"
+      - "--collation-server=utf8_unicode_ci"
+      - "--explicit_defaults_for_timestamp"
+      - "--slow-launch-time=1"
+      - "--slow-query-log=true"
+      - "--slow-query-log-file=/var/log/mysql/slow.log"
+    env: 
+      MYSQL_ROOT_PASSWORD: "{{ mysql_root_password }}"
+    volumes:
+      - "{{ mysql_docker_data_dir }}:/var/lib/mysql:rw"
+      - "{{ mysql_docker_conf_dir }}:/etc/mysql/conf.d"
+  when: mysql_docker_image == "mysql:5.6"
+
+- name: Ensure MySQL5.7 container is up
+  docker_container:
+    name: "{{ mysql_docker_name }}"
+    hostname: "{{ mysql_docker_name }}"
+    image: "{{ mysql_docker_image }}"
+    network_mode: "{{ docker_network_name }}"
+    ports: "{{ ansible_default_ipv4.address }}:3306:3306"
+    state: started
+    restart: yes
+    restart_policy: on-failure
+    command:
+      - "--character-set-server=utf8"
+      - "--collation-server=utf8_general_ci"
+      - "--explicit_defaults_for_timestamp"
+      - "--slow-launch-time=1"
+      - "--slow-query-log=true"
+      - "--slow-query-log-file=/var/log/mysql/slow.log"
+    env: 
+      MYSQL_ROOT_PASSWORD: "{{ mysql_root_password }}"
+    volumes:
+      - "{{ mysql_docker_data_dir }}:/var/lib/mysql:rw"
+      - "{{ mysql_docker_conf_dir }}/my.cnf:/etc/mysql/my.cnf:ro"
+      - "{{ mysql_docker_log_dir }}:/var/log/mysql/:rw"
+  when: mysql_docker_image == "mysql:5.7"
+      
+

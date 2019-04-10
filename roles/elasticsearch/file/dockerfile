@@ -1,0 +1,7 @@
+FROM elasticsearch:6.6.2
+
+MAINTAINER Jerry Zhu "zhusas@163.com"
+
+RUN wget -ci --tries=0 -O /tmp/elasticsearch-analysis-ik.zip https://github.com/medcl/elasticsearch-analysis-ik/releases/download/v6.6.2/elasticsearch-analysis-ik-6.6.2.zip && unzip /tmp/elasticsearch-analysis-ik.zip -d /usr/share/elasticsearch/plugins/ik && rm -rf /tmp/elasticsearch-analysis-ik.zip
+
+

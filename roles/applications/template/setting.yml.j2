@@ -1,0 +1,30 @@
+defaults: &defaults
+  searchkick:
+    host: "{{ ansible_default_ipv4.address }}:9200"
+    index: "{{ elasticsearch_index }}" 
+  mongo:
+    database: "{{ mongodb_database }}"
+  redis:
+    url: "redis://:{{ ansible_default_ipv4.address }}:6379/6"
+  elasticsearch:
+     host: "{{ ansible_default_ipv4.address }}:9200"
+     index: "{{ elasticsearch_index }}"
+     log: true
+
+staging:
+  <<: *defaults
+  mongo:
+    database: "{{ mongodb_database }}"
+    hosts:
+      - "{{ ansible_default_ipv4.address }}:27017"
+  elasticsearch:
+    host: "{{ ansible_default_ipv4.address }}:9200"
+    index: "{{ elasticsearch_index }}"
+    log: true
+
+production:
+  <<: *defaults
+  redis:
+    url: "redis://{{ production_redis_host }}:6379/15"
+
+

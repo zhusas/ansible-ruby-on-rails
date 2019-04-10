@@ -1,0 +1,51 @@
+---
+- name: Create Elasticsearch directory
+  file: 
+    path: "{{ item }}"
+    state: directory
+    mode: "u+rwx,g+rwx,o+x"
+    group: 1000
+    owner: 1000
+  with_items:
+    - "{{ elasticsearch_data_dir }}"
+    - "{{ elasticsearch_conf_dir }}"
+    - "{{ elasticsearch_log_dir }}"
+
+
+- name: The vm.max_map_count kernel setting needs to be set to at least 524288 for production use
+  sysctl:
+    name: vm.max_map_count
+    value: 524288
+    sysctl_set: yes
+    state: present
+    reload: yes    
+
+- name: Copy dockerfile to remote /tmp dir
+  copy:
+    src: file/dockerfile
+    dest: /tmp/dockerfile
+
+
+- name: Build an image from ElasticSearch with IK for searching in Chinese 
+  shell: "docker build -f /tmp/dockerfile -t es6.6.2-ik ."
+
+
+- name: Install Elasticsearch container
+  docker_container:
+    name: elasticsearch
+    image: es6.6.2-ik
+    network_mode: "{{ docker_network_name }}"
+    restart_policy: on-failure
+    volumes:
+      - "{{ elasticsearch_data_dir }}:/usr/share/elasticsearch/data"
+    ports:
+      - "{{ ansible_default_ipv4.address }}:9200:9200"
+      - "{{ ansible_default_ipv4.address }}:9300:9300"
+    env:
+      discovery.type=single-node
+      bootstrap.memory_lock=true
+      ES_JAVA_OPTS="-Xms2g -Xmx2g"
+
+
+
+

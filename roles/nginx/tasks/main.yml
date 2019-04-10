@@ -1,0 +1,67 @@
+---
+- name: Unarchive nginx source that needs to be downloaded 
+  unarchive:
+    src: "https://nginx.org/download/nginx-{{ nginx_version }}.tar.gz"
+    dest: "{{ nginx_src_dir }}"
+    remote_src: yes
+  register: nginx_source
+
+
+- name: clone gridfs-nginx plugin
+  git:
+    repo: 'https://github.com/barakethan/gridfs-nginx-plugin.git'
+    dest: "{{ nginx_src_dir }}/nginx-gridfs"
+  when: nginx_source is changed
+  register: nginx_gridfs
+
+
+- name: clone C Driver for MongoDB
+  git:
+    repo: 'https://github.com/eagleas/mongo-c-driver.git'
+    dest: "{{ nginx_src_dir }}/nginx-gridfs/mongo-c-driver/"
+    version: v0.7.1
+  when: nginx_gridfs is changed
+  register: c_driver
+
+
+- name: Configuring NGINX source with custom modules
+  command: "./configure {{ nginx_build_options }} {{ nginx_gridfs_modules }}"
+  args:
+    chdir: "{{ nginx_src_dir }}/nginx-{{ nginx_version }}"
+  when:
+    - nginx_source is changed
+    - nginx_gridfs is changed
+    - c_driver is changed
+  register: nginx_configure
+
+- name: Installing NGINX
+  shell: make -j {{ ansible_processor_vcpus }} && make install
+  args:
+    chdir: "{{ nginx_src_dir }}/nginx-{{ nginx_version }}"
+  when: nginx_configure is changed
+  register: nginx_install
+
+- name: Creating NGINX conf file
+  template:
+    src: nginx_gridfs.conf.j2
+    dest: "{{ nginx_conf_path }}"
+  when:
+    - nginx_configure is changed
+    - nginx_install is changed
+
+- name: Installing NGINX init script
+  template:
+    src: nginx_init.j2
+    dest: /etc/init.d/nginx
+    mode: 0775
+  notify:
+    - start nginx
+
+
+
+
+
+
+
+
+
